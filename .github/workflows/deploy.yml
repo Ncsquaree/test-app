@@ -1,0 +1,35 @@
+name: Build & Deploy Android APK to EC2 + S3
+
+on:
+  push:
+    branches:
+      - main   # or master — change as needed
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout source code
+      uses: actions/checkout@v4
+
+    - name: SSH into EC2 and run deployment script
+      uses: appleboy/ssh-action@v1.2.0
+      with:
+        host: ${{ secrets.EC2_HOST }}
+        username: ${{ secrets.EC2_USER }}
+        key: ${{ secrets.EC2_KEY }}
+        script: |
+          cd ~/your-project-folder
+          git pull origin main
+          chmod +x gradlew
+          ./gradlew assembleRelease
+
+          # Upload APK to S3
+          aws configure set aws_access_key_id ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws configure set aws_secret_access_key ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws configure set default.region ${{ secrets.AWS_REGION }}
+          aws s3 cp app/build/outputs/apk/release/app-release.apk s3://${{ secrets.S3_BUCKET }}/builds/
+
+    - name: Confirm success
+      run: echo "✅ APK built and uploaded to S3 successfully!"
